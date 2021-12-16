@@ -1,7 +1,5 @@
 package model
 
-import "time"
-
 // SensorLocation 只读
 type SensorLocation struct {
 	ID          int    `gorm:"column:ID;primaryKey;not null;->" json:"id"`
@@ -111,22 +109,22 @@ func (m InvokeService) TableName() string {
 }
 
 // AlertRecord 任务记录
-type AlertRecord struct {
-	Id             int       `gorm:"column:id;primaryKey;not null;autoIncrement" json:"id"`
-	TaskId         string    `gorm:"column:task_id;not null" json:"task_id"`
-	ProjectId      int       `gorm:"column:project_id;not null" json:"project_id"`
-	SensorMac      string    `gorm:"column:sensor_mac"  json:"sensor_mac"`
-	SensorType     string    `gorm:"column:sensor_type" json:"sensor_type"`
-	ReceiveNo      string    `gorm:"column:receive_no" json:"receive_no"`
-	ThresholdUpper float64   `gorm:"column:threshold_upper" json:"threshold_upper"`
-	ThresholdLower float64   `gorm:"column:threshold_lower" json:"threshold_lower"`
-	Value          float64   `gorm:"column:value" json:"value"`
-	Level          int       `gorm:"column:level" json:"level"`
-	Created        time.Time `gorm:"column:created" json:"created"`
-	View           bool      `gorm:"column:view" json:"view"`
-	Description    string    `gorm:"column:description" json:"description"`
-}
-
-func (t AlertRecord) TableName() string {
-	return "alert_record"
-}
+//type AlertRecord struct {
+//	Id             int       `gorm:"column:id;primaryKey;not null;autoIncrement" json:"id"`
+//	TaskId         string    `gorm:"column:task_id;not null" json:"task_id"`
+//	ProjectId      int       `gorm:"column:project_id;not null" json:"project_id"`
+//	SensorMac      string    `gorm:"column:sensor_mac"  json:"sensor_mac"`
+//	SensorType     string    `gorm:"column:sensor_type" json:"sensor_type"`
+//	ReceiveNo      string    `gorm:"column:receive_no" json:"receive_no"`
+//	ThresholdUpper float64   `gorm:"column:threshold_upper" json:"threshold_upper"`
+//	ThresholdLower float64   `gorm:"column:threshold_lower" json:"threshold_lower"`
+//	Value          float64   `gorm:"column:value" json:"value"`
+//	Level          int       `gorm:"column:level" json:"level"`
+//	Created        time.Time `gorm:"column:created" json:"created"`
+//	View           bool      `gorm:"column:view" json:"view"`
+//	Description    string    `gorm:"column:description" json:"description"`
+//}
+//
+//func (t AlertRecord) TableName() string {
+//	return "alert_record"
+//}

@@ -20,7 +20,8 @@ const (
 type ModelType int
 
 const (
-	DetectType ModelType = iota
+	StreamType ModelType = iota
+	BatchType
 	ProcessType
 )
 

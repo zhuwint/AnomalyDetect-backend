@@ -56,9 +56,9 @@ func Init() {
 			panic(fmt.Sprintf("cannot migrate database: %s", err.Error()))
 		}
 	}
-	if !MysqlClient.DB.Migrator().HasTable(&model.AlertRecord{}) {
-		if err := MysqlClient.DB.AutoMigrate(&model.AlertRecord{}); err != nil {
-			panic(fmt.Sprintf("cannot migrate database: %s", err.Error()))
-		}
-	}
+	//if !MysqlClient.DB.Migrator().HasTable(&model.AlertRecord{}) {
+	//	if err := MysqlClient.DB.AutoMigrate(&model.AlertRecord{}); err != nil {
+	//		panic(fmt.Sprintf("cannot migrate database: %s", err.Error()))
+	//	}
+	//}
 }

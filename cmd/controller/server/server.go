@@ -87,6 +87,7 @@ func (c *Controller) initRouter() {
 	api.DELETE("/task", c.deleteTask)
 	tasks := api.Group("/task")
 	{
+		tasks.GET("/target", c.getTaskByTargetSeries)
 		tasks.POST("/set", c.setThreshold)
 		// 批处理任务的创建与更新
 		tasks.POST("/batch", c.createBatchTask)
@@ -96,12 +97,14 @@ func (c *Controller) initRouter() {
 		tasks.PUT("/stream", c.updateStreamTask)
 		// 控制模型更新与异常检测 开启/暂停
 		tasks.POST("/control", c.taskControl)
+		tasks.POST("/compute", c.computeThreshold)
 	}
 	model := api.Group("/model")
 	{
 		model.POST("/register", c.registerModel)
 		model.DELETE("/register", c.unregisterModel)
-		model.GET("/detect", c.getDetectModel)
+		model.GET("/stream", c.getStreamModel)
+		model.GET("/batch", c.getBatchModel)
 		model.GET("/process", c.getDataProcessModel)
 		model.GET("/params", c.getModelParams)
 		model.POST("/validate", c.paramsValidate)
@@ -111,9 +114,11 @@ func (c *Controller) initRouter() {
 	{
 		data.POST("/query", c.query)
 	}
-	api.GET("/record", c.getRecord) // 获取告警记录
-	api.POST("/record", c.setRecordView)
-	api.POST("/record/accept", c.acceptAll)
+	record := api.Group("/record")
+	{
+		record.GET("/system", c.getSystemRecord)
+		record.GET("/alert", c.getAlertRecord)
+	}
 }
 
 func (c *Controller) initTask() {

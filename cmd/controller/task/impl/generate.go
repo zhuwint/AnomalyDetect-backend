@@ -22,8 +22,8 @@ func GenerateTaskId() string {
 	// 将int64转化为字母
 	var res []byte
 	for id > 0 {
-		res = append(res, dict[id%10])
-		id = id / 10
+		res = append(res, dict[id&0xf])
+		id = id >> 4
 	}
 	return string(res)
 }

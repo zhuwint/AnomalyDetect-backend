@@ -48,5 +48,4 @@ const (
 	InfoLevel Level = iota
 	WarnLevel
 	AlertLevel
-	CritLevel
 )

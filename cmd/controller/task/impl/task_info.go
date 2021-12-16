@@ -8,13 +8,13 @@ import (
 	"strconv"
 )
 
-// 模型调用：模型名称以及调用参数
-type modelService struct {
+// ModelService 模型调用：模型名称以及调用参数
+type ModelService struct {
 	Name   string                 `json:"name"`
 	Params map[string]interface{} `json:"params"`
 }
 
-func (m modelService) Validate() error {
+func (m ModelService) Validate() error {
 	if m.Name == "" {
 		return fmt.Errorf("model name cannot be empty")
 	}
@@ -42,8 +42,8 @@ func (t BatchMeta) Validate() error {
 type BatchTaskInfo struct {
 	TaskId        string           `json:"task_id"`
 	ProjectId     int              `json:"project_id"`
-	Preprocess    *modelService    `json:"preprocess"`
-	DetectModel   *modelService    `json:"detect_model"`
+	Preprocess    *ModelService    `json:"preprocess"`
+	DetectModel   *ModelService    `json:"detect_model"`
 	Target        UnvariedSeries   `json:"target"`         // 目标检测序列
 	Independent   []UnvariedSeries `json:"independent"`    // 其它序列（自变量）
 	ModelUpdate   *BatchMeta       `json:"model_update"`   // 用于更新阈值
@@ -147,8 +147,8 @@ func (s StreamMeta) Validate() error {
 type StreamTaskInfo struct {
 	TaskId        string           `json:"task_id"`
 	ProjectId     int              `json:"project_id"`
-	Preprocess    *modelService    `json:"preprocess"`
-	DetectModel   *modelService    `json:"detect_model"`
+	Preprocess    *ModelService    `json:"preprocess"`
+	DetectModel   *ModelService    `json:"detect_model"`
 	Target        UnvariedSeries   `json:"target"`       // 目标检测序列
 	Independent   []UnvariedSeries `json:"independent"`  // 其它序列（自变量）
 	ModelUpdate   *BatchMeta       `json:"model_update"` // 用于更新阈值

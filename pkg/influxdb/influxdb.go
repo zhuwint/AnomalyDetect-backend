@@ -5,6 +5,7 @@ import (
 	"fmt"
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
+	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"golang.org/x/sync/semaphore"
 	"time"
 )
@@ -152,4 +153,10 @@ func (c *Connector) QueryMultiple(script string, ctx context.Context) (*TimeSeri
 	}
 
 	return series, nil
+}
+
+func (c *Connector) WritePoint(p *write.Point) {
+	writeApi := c.client.WriteAPI(c.Org, c.Bucket)
+	writeApi.WritePoint(p)
+	writeApi.Flush()
 }

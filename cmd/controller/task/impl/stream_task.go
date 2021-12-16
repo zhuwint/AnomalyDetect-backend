@@ -225,8 +225,12 @@ func (s *StreamTask) do(ctx context.Context) {
 	d, _ := time.ParseDuration(s.info.ModelUpdate.Interval)
 	timeTicker := time.NewTicker(d)
 
-	s.doModelUpdate()
-	s.modelUpdateState.SetNext(time.Now().Add(d))
+	go time.AfterFunc(5*time.Second, func() {
+		if s.modelUpdateState.IsEnabled() {
+			s.doModelUpdate()
+			s.modelUpdateState.SetNext(time.Now().Add(d))
+		}
+	})
 
 	for {
 		select {
@@ -265,14 +269,17 @@ func (s *StreamTask) doModelUpdate() {
 		Level:          int(api.InfoLevel),
 	}
 
+	level := record.InfoLevel
+
 	if result.Success {
 		_ = s.SetThreshold(result.ThresholdLower, result.ThresholdUpper)
 		r.Description = "阈值更新成功"
 	} else {
 		s.logError("model update failed: %s", result.Error)
 		r.Description = fmt.Sprintf("阈值更新失败: %s", result.Error)
+		level = record.ErrorLevel
 	}
-	if err := record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r); err != nil {
+	if err := record.SaveSystemRecord(s.TaskId(), s.info.ProjectId, r, level); err != nil {
 		s.logError("save record failed: %s", err.Error())
 	}
 }
@@ -336,6 +343,17 @@ func (s *StreamTask) Run(value float64, pt time.Time) {
 	s.triggered.Set(s.triggered.Get() + 1)
 	s.currentValue.Set(value)
 	upper, lower := s.thresholdUpper.Get(), s.thresholdLower.Get()
+
+	r := record.Record{
+		SensorMac:      s.info.Target.SensorMac,
+		SensorType:     s.info.Target.SensorType,
+		ReceiveNo:      s.info.Target.ReceiveNo,
+		ThresholdUpper: s.thresholdUpper.Get(),
+		ThresholdLower: s.thresholdLower.Get(),
+		Value:          s.currentValue.Get(),
+		Time:           pt,
+	}
+
 	if value < lower || value > upper {
 		if !s.isAnomaly && pt.After(s.timer) { // 舍弃乱序的点
 			s.isAnomaly = true
@@ -344,9 +362,15 @@ func (s *StreamTask) Run(value float64, pt time.Time) {
 		if s.timer.Add(s.duration).Before(time.Now()) {
 			// TODO: message pub
 			s.logInfo("alert message pub")
+			r.Level = s.info.Level
+			_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
 		}
 		s.logInfo("anomaly detect: upper %v lower %v current %v, is anomaly", upper, lower, value)
 	} else {
+		if s.isAnomaly {
+			r.Level = int(api.InfoLevel)
+			_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+		}
 		s.isAnomaly = false
 		s.logInfo("anomaly detect: upper %v lower %v current %v, is normal", upper, lower, value)
 	}

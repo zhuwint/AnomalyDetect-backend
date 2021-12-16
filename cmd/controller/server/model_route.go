@@ -12,30 +12,24 @@ type modelResp struct {
 	Health bool   `json:"health"`
 }
 
-func (c *Controller) getDetectModel(ctx *gin.Context) {
-	models := service.Model.Keys()
-	var res []modelResp
+func (c *Controller) getStreamModel(ctx *gin.Context) {
+	c.getModel(ctx, service.StreamType)
+}
 
-	for _, k := range models {
-		if m, ok := service.Model.Get(k); ok {
-			if m.Type == service.DetectType {
-				if _, err := service.GetModelParams(k); err != nil {
-					res = append(res, modelResp{Name: k, Url: m.Url, Health: false})
-				} else {
-					res = append(res, modelResp{Name: k, Url: m.Url, Health: true})
-				}
-			}
-		}
-	}
-	ctx.JSON(http.StatusOK, ginResponse{Status: 0, Msg: "success", Data: res})
+func (c *Controller) getBatchModel(ctx *gin.Context) {
+	c.getModel(ctx, service.BatchType)
 }
 
 func (c *Controller) getDataProcessModel(ctx *gin.Context) {
+	c.getModel(ctx, service.ProcessType)
+}
+
+func (c *Controller) getModel(ctx *gin.Context, t service.ModelType) {
 	models := service.Model.Keys()
-	var res []modelResp
+	res := make([]modelResp, 0)
 	for _, k := range models {
 		if m, ok := service.Model.Get(k); ok {
-			if m.Type == service.ProcessType {
+			if m.Type == t {
 				if _, err := service.GetModelParams(k); err != nil {
 					res = append(res, modelResp{Name: k, Url: m.Url, Health: false})
 				} else {

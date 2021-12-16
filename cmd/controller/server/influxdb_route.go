@@ -59,7 +59,7 @@ func (c *Controller) query(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, ginResponse{Status: -1, Msg: "时间戳格式错误", Data: nil})
 		return
 	}
-	_stop, err := time.Parse(TIME_LAYOUT, req.Stop)
+	_stop, err := time.ParseInLocation(TIME_LAYOUT, req.Stop, time.Local)
 	if err != nil {
 		ctx.JSON(http.StatusOK, ginResponse{Status: -1, Msg: "时间戳格式错误", Data: nil})
 		return

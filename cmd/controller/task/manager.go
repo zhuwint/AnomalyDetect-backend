@@ -133,7 +133,6 @@ func (m *Manager) Update(taskId, projectId string, info api.Info) error {
 }
 
 func (m *Manager) SimpleStatus(projectId string) []api.Status {
-	fmt.Println(m.taskList)
 	m.rw.RLock()
 	defer m.rw.RUnlock()
 	matches := make([]api.Status, 0)

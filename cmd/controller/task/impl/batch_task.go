@@ -213,10 +213,17 @@ func (t *BatchTask) do(ctx context.Context) {
 	updateTicker := time.NewTicker(updateDuration)
 	detectTicker := time.NewTicker(detectDuration)
 
-	t.doModelUpdate()
-	t.modelUpdateState.SetNext(time.Now().Add(updateDuration))
-	//t.doAnomalyDetect()
-	//t.anomalyDetectState.SetNext(time.Now().Add(detectDuration))
+	// 延迟执行
+	go time.AfterFunc(5*time.Second, func() {
+		if t.modelUpdateState.IsEnabled() {
+			t.doModelUpdate()
+			t.modelUpdateState.SetNext(time.Now().Add(updateDuration))
+		}
+		if t.anomalyDetectState.IsEnabled() {
+			t.doAnomalyDetect()
+			t.anomalyDetectState.SetNext(time.Now().Add(detectDuration))
+		}
+	})
 
 	for {
 		select {
@@ -265,6 +272,7 @@ func (t *BatchTask) doAnomalyDetect() {
 		ThresholdUpper: t.thresholdUpper.Get(),
 		ThresholdLower: t.thresholdLower.Get(),
 		Value:          t.currentValue.Get(),
+		Time:           time.Now(),
 	}
 	if result.IsAnomaly || t.currentValue.Get() > t.thresholdUpper.Get() || t.currentValue.Get() < t.thresholdLower.Get() {
 		r.Level = t.info.Level
@@ -300,6 +308,8 @@ func (t *BatchTask) doModelUpdate() {
 		Level:      int(api.InfoLevel),
 	}
 
+	level := record.InfoLevel
+
 	if result.Success {
 		_ = t.SetThreshold(result.ThresholdLower, result.ThresholdUpper)
 		r.ThresholdLower = t.thresholdLower.Get()
@@ -307,8 +317,9 @@ func (t *BatchTask) doModelUpdate() {
 		r.Description = "阈值更新成功"
 	} else {
 		r.Description = fmt.Sprintf("阈值更新失败: %s", result.Error)
+		level = record.ErrorLevel
 	}
-	if err := record.SaveAlertRecord(t.TaskId(), t.info.ProjectId, r); err != nil {
+	if err := record.SaveSystemRecord(t.TaskId(), t.info.ProjectId, r, level); err != nil {
 		t.logError("save record failed: %s", err.Error())
 	}
 }
