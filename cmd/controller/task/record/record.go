@@ -28,6 +28,8 @@ const (
 
 type Record struct {
 	Time           time.Time `json:"time"`
+	Start          time.Time `json:"start"`
+	Stop           time.Time `json:"stop"`
 	SensorMac      string    `json:"sensor_mac"`
 	SensorType     string    `json:"sensor_type"`
 	ReceiveNo      string    `json:"receive_no"`
@@ -54,6 +56,8 @@ func SaveAlertRecord(taskId string, projectId int, data Record) error {
 			"threshold_lower": data.ThresholdLower,
 			"alert":           data.Level > 0,
 			"value":           data.Value,
+			"start":           data.Start.Format(timeFormatTz),
+			"stop":            data.Stop.Format(timeFormatTz),
 		},
 		data.Time)
 
@@ -105,6 +109,8 @@ type SysResponse struct {
 
 type AlertResponse struct {
 	Time           time.Time `json:"time"`
+	Start          string    `json:"start"`
+	Stop           string    `json:"stop"`
 	TaskId         string    `json:"task_id"`
 	ProjectId      string    `json:"project_id"`
 	SensorMac      string    `json:"sensor_mac"`
@@ -171,6 +177,8 @@ func GetAlertRecord(projectId, taskId, start, stop string) ([]AlertResponse, err
 			ThresholdLower: data.Record().ValueByKey("threshold_lower").(float64),
 			Value:          data.Record().ValueByKey("value").(float64),
 			Alert:          data.Record().ValueByKey("alert").(bool),
+			Start:          data.Record().ValueByKey("start").(string),
+			Stop:           data.Record().ValueByKey("stop").(string),
 		}
 		res = append(res, row)
 	}

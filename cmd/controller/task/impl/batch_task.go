@@ -253,6 +253,10 @@ func (t *BatchTask) doAnomalyDetect() {
 	series := append([]UnvariedSeries{t.info.Target}, t.info.Independent...)
 	fluxScript := t.info.AnomalyDetect.Query.TransToFlux(t.info.ProjectId, series)
 
+	stop := time.Now()
+	offset, _ := time.ParseDuration(t.info.AnomalyDetect.Query.Range.Start)
+	start := stop.Add(offset)
+
 	result, err := t.modelInvoke(fluxScript, service.AnomalyDetectMethod)
 	if err != nil {
 		t.logError("anomaly detect failed: %s", err.Error())
@@ -273,6 +277,8 @@ func (t *BatchTask) doAnomalyDetect() {
 		ThresholdLower: t.thresholdLower.Get(),
 		Value:          t.currentValue.Get(),
 		Time:           time.Now(),
+		Start:          start,
+		Stop:           stop,
 	}
 	if result.IsAnomaly || t.currentValue.Get() > t.thresholdUpper.Get() || t.currentValue.Get() < t.thresholdLower.Get() {
 		r.Level = t.info.Level
@@ -293,7 +299,6 @@ func (t *BatchTask) doModelUpdate() {
 
 	series := append([]UnvariedSeries{t.info.Target}, t.info.Independent...)
 	fluxScript := t.info.ModelUpdate.Query.TransToFlux(t.info.ProjectId, series)
-
 	result, err := t.modelInvoke(fluxScript, service.ModelUpdateMethod)
 	if err != nil {
 		t.logError("model update failed: %s", err.Error())

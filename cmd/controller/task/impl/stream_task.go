@@ -352,6 +352,8 @@ func (s *StreamTask) Run(value float64, pt time.Time) {
 		ThresholdLower: s.thresholdLower.Get(),
 		Value:          s.currentValue.Get(),
 		Time:           pt,
+		Start:          pt,
+		Stop:           pt,
 	}
 
 	if value < lower || value > upper {
