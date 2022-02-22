@@ -64,6 +64,10 @@ func (t BatchTaskInfo) IsStreamTask() bool {
 	return false
 }
 
+func (t BatchTaskInfo) IsUnionTask() bool {
+	return false
+}
+
 func (t BatchTaskInfo) MarshToJson() []byte {
 	data, _ := json.Marshal(t)
 	return data
@@ -208,6 +212,10 @@ func (s StreamTaskInfo) GetTaskId() string {
 
 func (s StreamTaskInfo) IsStreamTask() bool {
 	return true
+}
+
+func (s StreamTaskInfo) IsUnionTask() bool {
+	return false
 }
 
 func (s StreamTaskInfo) GetProjectId() string {

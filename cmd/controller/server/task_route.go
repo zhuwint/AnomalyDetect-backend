@@ -5,6 +5,7 @@ import (
 	"anomaly-detect/cmd/controller/task/api"
 	"anomaly-detect/cmd/controller/task/impl"
 	"anomaly-detect/cmd/controller/task/service"
+	"anomaly-detect/cmd/controller/task/union"
 	"anomaly-detect/pkg/models"
 	"context"
 	"encoding/json"
@@ -43,15 +44,30 @@ func (c *Controller) createStreamTask(ctx *gin.Context) {
 	}
 }
 
+func (c *Controller) createUnionTask(ctx *gin.Context) {
+	var taskInfo union.TaskInfo
+	if err := ctx.BindJSON(&taskInfo); err != nil {
+		ctx.JSON(http.StatusOK, ginResponse{Status: -1, Msg: err.Error()})
+		return
+	}
+	taskInfo.TaskId = impl.GenerateTaskId()
+	if err := c.taskManager.Create(taskInfo); err != nil {
+		ctx.JSON(http.StatusOK, ginResponse{Status: -1, Msg: err.Error()})
+	} else {
+		ctx.JSON(http.StatusOK, ginResponse{Status: 0, Msg: "success"})
+	}
+}
+
 func (c *Controller) getTask(ctx *gin.Context) {
 	taskId := ctx.Query("taskId")
 	projectId := ctx.Query("projectId")
+	isUnion, _ := strconv.ParseBool(ctx.Query("isUnion")) // 是否是联合告警任务
 	if projectId == "" {
 		ctx.JSON(http.StatusOK, ginResponse{Status: -1, Msg: "must provide project_id"})
 		return
 	}
 	if taskId == "" {
-		data := c.taskManager.SimpleStatus(projectId)
+		data := c.taskManager.SimpleStatus(projectId, isUnion)
 		ctx.JSON(http.StatusOK, ginResponse{Status: 0, Msg: "success", Data: data})
 	} else {
 		data, err := c.taskManager.TaskStatus(taskId, projectId)
@@ -72,7 +88,7 @@ func (c *Controller) getTaskByTargetSeries(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, ginResponse{Status: -1, Msg: "must provide project_id, sensorMac, sensorType and receiveNo"})
 		return
 	}
-	data := c.taskManager.SimpleStatus(projectId)
+	data := c.taskManager.SimpleStatus(projectId, false)
 	resp := make([]api.Status, 0)
 	for i := range data {
 		d, ok := data[i].(impl.SimpleStatus)
@@ -137,6 +153,25 @@ func (c *Controller) updateStreamTask(ctx *gin.Context) {
 	}
 }
 
+func (c *Controller) updateUnionTask(ctx *gin.Context) {
+	taskId := ctx.Query("taskId")
+	projectId := ctx.Query("projectId")
+	if taskId == "" || projectId == "" {
+		ctx.JSON(http.StatusBadRequest, ginResponse{Status: -1, Msg: "must provide taskId and projectId"})
+		return
+	}
+	var taskInfo union.TaskInfo
+	if err := ctx.BindJSON(&taskInfo); err != nil {
+		ctx.JSON(http.StatusBadRequest, ginResponse{Status: -1, Msg: err.Error()})
+		return
+	}
+	if err := c.taskManager.Update(taskId, projectId, taskInfo); err != nil {
+		ctx.JSON(http.StatusBadRequest, ginResponse{Status: -1, Msg: err.Error()})
+	} else {
+		ctx.JSON(http.StatusOK, ginResponse{Status: 0, Msg: "success"})
+	}
+}
+
 func (c *Controller) taskControl(ctx *gin.Context) {
 	taskId := ctx.Query("taskId")
 	projectId := ctx.Query("projectId")
@@ -168,15 +203,18 @@ func (c *Controller) setThreshold(ctx *gin.Context) {
 		return
 	}
 	type requestType struct {
-		Upper *float64 `json:"upper"`
-		Lower *float64 `json:"lower"`
+		SensorMac  string   `json:"sensor_mac"`
+		SensorType string   `json:"sensor_type"`
+		ReceiveNo  string   `json:"receive_no"`
+		Upper      *float64 `json:"upper"`
+		Lower      *float64 `json:"lower"`
 	}
 	var req requestType
 	if err := ctx.BindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, ginResponse{Status: -1, Msg: err.Error()})
 		return
 	}
-	if err := c.taskManager.SetThreshold(taskId, projectId, req.Lower, req.Upper); err != nil {
+	if err := c.taskManager.SetThreshold(taskId, projectId, req.SensorMac, req.SensorType, req.ReceiveNo, req.Lower, req.Upper); err != nil {
 		ctx.JSON(http.StatusBadRequest, ginResponse{Status: -1, Msg: err.Error()})
 	} else {
 		ctx.JSON(http.StatusOK, ginResponse{Status: 0, Msg: "success"})

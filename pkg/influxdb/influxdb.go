@@ -3,11 +3,13 @@ package influxdb
 import (
 	"context"
 	"fmt"
+	"sort"
+	"time"
+
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 	"golang.org/x/sync/semaphore"
-	"time"
 )
 
 type Connector struct {
@@ -72,13 +74,12 @@ func (c *Connector) Query(script string, ctx context.Context) ([]*Point, error) 
 
 		// value type only support float32 and float64
 		value := result.Record().ValueByKey("_value")
-		switch value.(type) {
+		switch v := value.(type) {
 		case float32:
-			_v := float64(value.(float32))
+			_v := float64(v)
 			p.Value = &_v
 		case float64:
-			_v := value.(float64)
-			p.Value = &_v
+			p.Value = &v
 		default:
 			if value != nil {
 				return nil, fmt.Errorf("invalid value type")
@@ -86,6 +87,11 @@ func (c *Connector) Query(script string, ctx context.Context) ([]*Point, error) 
 		}
 		res = append(res, p)
 	}
+
+	// 查询结果有多张表时表间顺序不是按照时间顺序，这里暂时用排序法来满足时间有序
+	sort.Slice(res, func(i, j int) bool {
+		return res[i].Time.Before(res[j].Time)
+	})
 
 	if result.Err() != nil {
 		return nil, fmt.Errorf("query parsing error: %s", result.Err().Error())
@@ -125,13 +131,12 @@ func (c *Connector) QueryMultiple(script string, ctx context.Context) (*TimeSeri
 			timestamps = append(timestamps, result.Record().Time())
 		}
 		v := result.Record().ValueByKey("_value")
-		switch v.(type) {
+		switch _v := v.(type) {
 		case float64:
-			_v := v.(float64)
 			values = append(values, &_v)
 		case float32:
-			_v := float64(v.(float32))
-			values = append(values, &_v)
+			_v2 := float64(_v)
+			values = append(values, &_v2)
 		default:
 			if v == nil {
 				values = append(values, nil)

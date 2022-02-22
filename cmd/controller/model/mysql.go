@@ -98,6 +98,17 @@ func (t Task) TableName() string {
 	return "executor_task"
 }
 
+type UnionTask struct {
+	TaskId    string `gorm:"column:task_id;primaryKey;not null" json:"task_id"`
+	ProjectId string `gorm:"column:project_id;not null" json:"project_id"`
+	Content   string `gorm:"column:content;not null" json:"content"`
+	Enable    bool   `gorm:"column:enable;not null" json:"enable"`
+}
+
+func (u UnionTask) TableName() string {
+	return "union_task"
+}
+
 type InvokeService struct {
 	Name string `gorm:"column:name;primaryKey;not null" json:"name"`
 	Type int    `gorm:"column:type;not null" json:"type"` // 0表示阈值提取模型

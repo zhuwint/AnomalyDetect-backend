@@ -74,6 +74,10 @@ func (t *BatchTask) IsStream() bool {
 	return false
 }
 
+func (t *BatchTask) IsUnion() bool {
+	return false
+}
+
 func (t *BatchTask) Start() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.exit = cancel
@@ -193,7 +197,7 @@ func (t *BatchTask) EnableAnomalyDetect(enable bool) error {
 	return t.Save()
 }
 
-func (t *BatchTask) SetThreshold(lower *float64, upper *float64) error {
+func (t *BatchTask) SetThreshold(sensorMac, sensorType, receiveNo string, lower *float64, upper *float64) error {
 	if lower != nil {
 		t.thresholdLower.Set(*lower)
 		t.logInfo("set threshold lower: %v", *lower)
@@ -316,7 +320,7 @@ func (t *BatchTask) doModelUpdate() {
 	level := record.InfoLevel
 
 	if result.Success {
-		_ = t.SetThreshold(result.ThresholdLower, result.ThresholdUpper)
+		_ = t.SetThreshold("", "", "", result.ThresholdLower, result.ThresholdUpper)
 		r.ThresholdLower = t.thresholdLower.Get()
 		r.ThresholdUpper = t.thresholdUpper.Get()
 		r.Description = "阈值更新成功"
@@ -380,12 +384,12 @@ func (t *BatchTask) modelInvoke(flux string, method string) (service.InvokeRespo
 	}
 }
 
-func (t *BatchTask) SubKey() string {
+func (t *BatchTask) SubKey() []string {
 	series := t.info.Target
-	return fmt.Sprintf("%s#%s#%s#%s", t.info.GetProjectId(), series.SensorMac, series.SensorType, series.ReceiveNo)
+	return []string{fmt.Sprintf("%s#%s#%s#%s", t.info.GetProjectId(), series.SensorMac, series.SensorType, series.ReceiveNo)}
 }
 
-func (t *BatchTask) Run(value float64, pt time.Time) {
+func (t *BatchTask) Run(projectId, sensorMac, sensorType, receiveNo string, value float64, pt time.Time) {
 	// batch task 没有此项
 }
 

@@ -5,6 +5,7 @@ import (
 	"anomaly-detect/cmd/controller/task/api"
 	"anomaly-detect/cmd/controller/task/impl"
 	"anomaly-detect/cmd/controller/task/store"
+	"anomaly-detect/cmd/controller/task/union"
 	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
@@ -55,6 +56,7 @@ func (c *Controller) Start() error {
 	c.initRouter()
 	c.registerKong()
 	go time.AfterFunc(7*time.Second, c.initTask)
+	go time.AfterFunc(7*time.Second, c.initUnionTask)
 
 	// 此处阻塞
 	if err := c.httpServer.Run(fmt.Sprintf(":%d", defaultHttpPort)); err != nil {
@@ -95,6 +97,9 @@ func (c *Controller) initRouter() {
 		// 流处理任务的创建与更新
 		tasks.POST("/stream", c.createStreamTask)
 		tasks.PUT("/stream", c.updateStreamTask)
+		// 联合告警任务的创与更新
+		tasks.POST("/union", c.createUnionTask)
+		tasks.PUT("/union", c.updateUnionTask)
 		// 控制模型更新与异常检测 开启/暂停
 		tasks.POST("/control", c.taskControl)
 		tasks.POST("/compute", c.computeThreshold)
@@ -152,9 +157,32 @@ func (c *Controller) initTask() {
 			logrus.Errorf("init task %s failed: %s", tasks[i].TaskId, err.Error())
 		} else {
 			logrus.Infof("init task %s success", tasks[i].TaskId)
-			_ = c.taskManager.SetThreshold(tasks[i].TaskId, tasks[i].ProjectId, &tasks[i].ThresholdLower, &tasks[i].ThresholdUpper)
+			// TODO:
+			_ = c.taskManager.SetThreshold(tasks[i].TaskId, tasks[i].ProjectId, "", "", "", &tasks[i].ThresholdLower, &tasks[i].ThresholdUpper)
 			_ = c.taskManager.EnableAnomalyDetect(tasks[i].TaskId, tasks[i].ProjectId, tasks[i].DetectEnable)
 			_ = c.taskManager.EnableModelUpdate(tasks[i].TaskId, tasks[i].ProjectId, tasks[i].UpdateEnable)
+		}
+	}
+}
+
+func (c *Controller) initUnionTask() {
+	tasks, err := union.GetAll()
+	if err != nil {
+		logrus.Error("init union task failed: %s", err.Error())
+		return
+	}
+	for i := range tasks {
+		var taskInfo union.TaskInfo
+		if err := json.Unmarshal([]byte(tasks[i].Content), &taskInfo); err != nil {
+			logrus.Errorf("init union task %s failed: %s", tasks[i].TaskId, err.Error())
+			_ = union.Del(tasks[i].TaskId, tasks[i].ProjectId)
+			continue
+		}
+		if err := c.taskManager.Create(taskInfo); err != nil {
+			logrus.Errorf("init union task %s failed:%s", tasks[i].TaskId, err.Error())
+		} else {
+			logrus.Infof("init union task %s success", tasks[i].TaskId)
+			_ = c.taskManager.EnableAnomalyDetect(tasks[i].TaskId, tasks[i].ProjectId, tasks[i].Enable)
 		}
 	}
 }

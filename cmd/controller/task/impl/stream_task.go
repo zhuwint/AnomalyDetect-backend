@@ -81,6 +81,10 @@ func (s *StreamTask) IsStream() bool {
 	return true
 }
 
+func (s *StreamTask) IsUnion() bool {
+	return false
+}
+
 func (s *StreamTask) Start() error {
 	if s.exit != nil {
 		s.exit()
@@ -204,7 +208,7 @@ func (s *StreamTask) EnableAnomalyDetect(enable bool) error {
 	return s.Save()
 }
 
-func (s *StreamTask) SetThreshold(lower *float64, upper *float64) error {
+func (s *StreamTask) SetThreshold(sensorMac, sensorType, receiveNo string, lower *float64, upper *float64) error {
 	if lower != nil {
 		s.thresholdLower.Set(*lower)
 		s.logInfo("set threshold lower: %v", *lower)
@@ -216,9 +220,9 @@ func (s *StreamTask) SetThreshold(lower *float64, upper *float64) error {
 	return s.Save()
 }
 
-func (s *StreamTask) SubKey() string {
+func (s *StreamTask) SubKey() []string {
 	series := s.info.Target
-	return fmt.Sprintf("%s#%s#%s#%s", s.info.GetProjectId(), series.SensorMac, series.SensorType, series.ReceiveNo)
+	return []string{fmt.Sprintf("%s#%s#%s#%s", s.info.GetProjectId(), series.SensorMac, series.SensorType, series.ReceiveNo)}
 }
 
 func (s *StreamTask) do(ctx context.Context) {
@@ -272,7 +276,7 @@ func (s *StreamTask) doModelUpdate() {
 	level := record.InfoLevel
 
 	if result.Success {
-		_ = s.SetThreshold(result.ThresholdLower, result.ThresholdUpper)
+		_ = s.SetThreshold("", "", "", result.ThresholdLower, result.ThresholdUpper)
 		r.Description = "阈值更新成功"
 	} else {
 		s.logError("model update failed: %s", result.Error)
@@ -335,7 +339,7 @@ func (s *StreamTask) modelInvoke(flux string) (service.InvokeResponse, error) {
 	}
 }
 
-func (s *StreamTask) Run(value float64, pt time.Time) {
+func (s *StreamTask) Run(projectId, sensorMac, sensorType, receiveNo string, value float64, pt time.Time) {
 	// 执行异常检测，复用goroutine
 	if !s.detectEnabled.Get() {
 		return

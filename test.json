@@ -1,0 +1,24 @@
+{
+  "task_id": "test",
+  "project_id": 19,
+  "bucket": "yinao",
+  "measurement": "sensor_data",
+  "series": [
+    {
+      "sensor_mac": "430A",
+      "sensor_type": "distance",
+      "receive_no": "2",
+      "threshold_upper": 200.0,
+      "threshold_lower": 20.0
+    },
+    {
+      "sensor_mac": "430D",
+      "sensor_type": "distance",
+      "receive_no": "2",
+      "threshold_upper": 200.0,
+      "threshold_lower": 20.0
+    }
+  ],
+  "duration": "20h",
+  "level": 1
+}

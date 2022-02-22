@@ -4,6 +4,7 @@ import (
 	"anomaly-detect/cmd/controller/task/api"
 	"anomaly-detect/cmd/controller/task/impl"
 	"anomaly-detect/cmd/controller/task/store"
+	"anomaly-detect/cmd/controller/task/union"
 	imodels "anomaly-detect/pkg/models"
 	"fmt"
 	"strings"
@@ -42,11 +43,18 @@ func (m *Manager) Create(info api.Info) error {
 	var err error
 	switch info.IsStreamTask() {
 	case true:
-		task, err = impl.NewStreamTask(info)
+		if info.IsUnionTask() {
+			task, err = union.NewUnionTask(info)
+		} else {
+			task, err = impl.NewStreamTask(info)
+		}
 		if err != nil {
 			return fmt.Errorf("create task %s failed %s", info.GetTaskId(), err.Error())
 		}
-		m.pubSub[task.SubKey()] = append(m.pubSub[task.SubKey()], taskKey)
+		keys := task.SubKey()
+		for k := range keys {
+			m.pubSub[keys[k]] = append(m.pubSub[keys[k]], taskKey)
+		}
 	case false:
 		task, err = impl.NewBatchTask(info)
 		if err != nil {
@@ -74,15 +82,18 @@ func (m *Manager) Delete(taskId, projectId string) error {
 	_ = m.tasks[taskKey].Stop()
 	if m.tasks[taskKey].IsStream() {
 		// 删除数据订阅
-		ks, ok := m.pubSub[m.tasks[taskKey].SubKey()]
-		if ok {
-			var newKs []string
-			for i := range ks {
-				if ks[i] != taskKey {
-					newKs = append(newKs, ks[i])
+		keys := m.tasks[taskKey].SubKey()
+		for i := range keys {
+			ks, ok := m.pubSub[keys[i]]
+			if ok {
+				var newKs []string
+				for i := range ks {
+					if ks[i] != taskKey {
+						newKs = append(newKs, ks[i])
+					}
 				}
+				m.pubSub[keys[i]] = newKs
 			}
-			m.pubSub[m.tasks[taskKey].SubKey()] = newKs
 		}
 	}
 	delete(m.tasks, taskKey)
@@ -99,7 +110,10 @@ func (m *Manager) Delete(taskId, projectId string) error {
 	}
 
 	// m.taskList.Remove(taskKey)
-	return store.Del(taskId, projectId)
+	// task id 是全局唯一的，因此可以这样删除
+	err := store.Del(taskId, projectId)
+	err = union.Del(taskId, projectId)
+	return err
 }
 
 func (m *Manager) Update(taskId, projectId string, info api.Info) error {
@@ -116,23 +130,30 @@ func (m *Manager) Update(taskId, projectId string, info api.Info) error {
 	}
 	if m.tasks[taskKey].IsStream() {
 		// 删除数据订阅
-		ks, ok := m.pubSub[oldSubKey]
-		if ok {
-			var newKs []string
-			for i := range ks {
-				if ks[i] != taskKey { // taskKey 是不变的
-					newKs = append(newKs, ks[i])
+		for i := range oldSubKey {
+			ks, ok := m.pubSub[oldSubKey[i]]
+			if ok {
+				var newKs []string
+				for i := range ks {
+					if ks[i] != taskKey { // taskKey 是不变的
+						newKs = append(newKs, ks[i])
+					}
 				}
+				m.pubSub[oldSubKey[i]] = newKs
 			}
-			m.pubSub[oldSubKey] = newKs
+			// 重新创建订阅
+			newSubKey := m.tasks[taskKey].SubKey()
+			for i := range newSubKey {
+				m.pubSub[newSubKey[i]] = append(m.pubSub[newSubKey[i]], taskKey)
+			}
 		}
-		// 重新创建订阅
-		m.pubSub[m.tasks[taskKey].SubKey()] = append(m.pubSub[m.tasks[taskKey].SubKey()], taskKey)
 	}
 	return nil
 }
 
-func (m *Manager) SimpleStatus(projectId string) []api.Status {
+// SimpleStatus
+// 根据是否为联合预警任务分类
+func (m *Manager) SimpleStatus(projectId string, isUnion bool) []api.Status {
 	m.rw.RLock()
 	defer m.rw.RUnlock()
 	matches := make([]api.Status, 0)
@@ -143,7 +164,7 @@ func (m *Manager) SimpleStatus(projectId string) []api.Status {
 			delete(m.tasks, taskKey)
 			continue
 		}
-		if projectId == ks[1] {
+		if projectId == ks[1] && m.tasks[taskKey].IsUnion() == isUnion {
 			matches = append(matches, m.tasks[taskKey].SimpleStatus())
 		}
 	}
@@ -180,14 +201,14 @@ func (m *Manager) EnableAnomalyDetect(taskId, projectId string, enable bool) err
 	return m.tasks[taskKey].EnableAnomalyDetect(enable)
 }
 
-func (m *Manager) SetThreshold(taskId, projectId string, lower, upper *float64) error {
+func (m *Manager) SetThreshold(taskId, projectId, sensorMac, sensorType, receiveNo string, lower, upper *float64) error {
 	taskKey := buildTaskKey(taskId, projectId)
 	m.rw.Lock()
 	defer m.rw.Unlock()
 	if _, ok := m.tasks[taskKey]; !ok {
 		return fmt.Errorf("task %s in project %s not exist", taskId, projectId)
 	}
-	return m.tasks[taskKey].SetThreshold(lower, upper)
+	return m.tasks[taskKey].SetThreshold(sensorMac, sensorType, receiveNo, lower, upper)
 }
 
 func buildTaskKey(taskId, projectId string) string {
@@ -225,7 +246,7 @@ func (m *Manager) WritePoints(points imodels.Points) {
 
 		for _, task := range m.pubSub[key] {
 			if _, ok := m.tasks[task]; ok {
-				m.tasks[task].Run(value, p.Time())
+				m.tasks[task].Run(projectId, sensorMac, sensorType, receiveNo, value, p.Time())
 			}
 		}
 	}
