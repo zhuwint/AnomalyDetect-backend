@@ -9,11 +9,12 @@ import (
 	"anomaly-detect/pkg/models"
 	"context"
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"io/ioutil"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 func (c *Controller) createBatchTask(ctx *gin.Context) {
@@ -228,6 +229,7 @@ func (c *Controller) writeStream(ctx *gin.Context) {
 		precision = "n"
 	}
 	body, _ := ioutil.ReadAll(ctx.Request.Body)
+	// fmt.Print(string(body))
 	points, err := models.ParsePointsWithPrecision(body, time.Now().UTC(), precision)
 	if err != nil {
 		if err.Error() == "EOF" {
@@ -237,8 +239,9 @@ func (c *Controller) writeStream(ctx *gin.Context) {
 		}
 		return
 	}
-	ctx.JSON(http.StatusOK, nil)
+
 	c.taskManager.WritePoints(points)
+	ctx.JSON(http.StatusOK, nil)
 }
 
 type computeRequest struct {

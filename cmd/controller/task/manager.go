@@ -220,7 +220,7 @@ func parseTaskKey(key string) []string {
 }
 
 func (m *Manager) WritePoints(points imodels.Points) {
-	logrus.Infof("receive %d points", len(points))
+	// logrus.Infof("receive %d points", len(points))
 	for _, p := range points {
 		measurement := string(p.Name())
 		if measurement != impl.DefaultMeasurement {

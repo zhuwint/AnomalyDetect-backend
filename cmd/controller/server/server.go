@@ -55,7 +55,7 @@ func (c *Controller) Start() error {
 
 	c.initRouter()
 	c.registerKong()
-	go time.AfterFunc(7*time.Second, c.initTask)
+	//go time.AfterFunc(7*time.Second, c.initTask)
 	go time.AfterFunc(7*time.Second, c.initUnionTask)
 
 	// 此处阻塞

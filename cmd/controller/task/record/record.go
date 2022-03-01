@@ -18,6 +18,7 @@ const queryString = "task_id=? and project_id=?"
 
 const (
 	alertLogMeasurement  = "alert_logs"
+	unionLogMeasurement  = "union_logs"
 	systemLogMeasurement = "system_logs"
 )
 
@@ -60,7 +61,23 @@ func SaveAlertRecord(taskId string, projectId int, data Record) error {
 			"stop":            data.Stop.Format(timeFormatTz),
 		},
 		data.Time)
+	db.InfluxdbClient.WritePoint(point)
+	return nil
+}
 
+// 保存联合告警日志
+func SaveUnionRecord(taskId string, projectId int, data Record) error {
+	point := influxdb2.NewPoint(
+		unionLogMeasurement,
+		map[string]string{
+			"task_id":    taskId,
+			"project_id": strconv.Itoa(projectId),
+		},
+		map[string]interface{}{
+			"alert":       data.Level > 0,
+			"description": data.Description,
+		},
+		data.Time)
 	db.InfluxdbClient.WritePoint(point)
 	return nil
 }
@@ -122,6 +139,14 @@ type AlertResponse struct {
 	Alert          bool      `json:"alert"`
 }
 
+type UnionResponse struct {
+	Time        time.Time `json:"time"`
+	TaskId      string    `json:"task_id"`
+	ProjectId   string    `json:"project_id"`
+	Alert       bool      `json:"alert"`
+	Description string    `json:"description"`
+}
+
 // docker exec -it influxdb influx delete --bucket yinao --start '2021-12-15T00:00:00Z' --stop '2021-12-15T17:00:00Z' --predicate '_measurement="system_logs"'
 
 func GetSystemRecord(projectId, taskId, start, stop string) ([]SysResponse, error) {
@@ -154,6 +179,8 @@ func GetSystemRecord(projectId, taskId, start, stop string) ([]SysResponse, erro
 	return res, nil
 }
 
+// docker exec -it influxdb influx delete --bucket yinao --start '2019-12-15T00:00:00Z' --stop '2022-02-23T17:00:00Z' --predicate '_measurement="alert_logs"'
+
 func GetAlertRecord(projectId, taskId, start, stop string) ([]AlertResponse, error) {
 	defer func() {
 		if err := recover(); err != nil {
@@ -179,6 +206,30 @@ func GetAlertRecord(projectId, taskId, start, stop string) ([]AlertResponse, err
 			Alert:          data.Record().ValueByKey("alert").(bool),
 			Start:          data.Record().ValueByKey("start").(string),
 			Stop:           data.Record().ValueByKey("stop").(string),
+		}
+		res = append(res, row)
+	}
+	return res, nil
+}
+
+func GetUnionRecord(projectId, taskId, start, stop string) ([]UnionResponse, error) {
+	defer func() {
+		if err := recover(); err != nil {
+			logrus.Error(err)
+		}
+	}()
+	res := make([]UnionResponse, 0)
+	data, err := query(unionLogMeasurement, projectId, taskId, start, stop)
+	if err != nil {
+		return res, err
+	}
+	for data.Next() {
+		row := UnionResponse{
+			Time:        data.Record().Time(),
+			TaskId:      data.Record().ValueByKey("task_id").(string),
+			ProjectId:   data.Record().ValueByKey("project_id").(string),
+			Alert:       data.Record().ValueByKey("alert").(bool),
+			Description: data.Record().ValueByKey("description").(string),
 		}
 		res = append(res, row)
 	}

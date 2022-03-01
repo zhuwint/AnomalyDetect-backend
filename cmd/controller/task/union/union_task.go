@@ -5,7 +5,6 @@ import (
 	"anomaly-detect/cmd/controller/task/record"
 	"anomaly-detect/pkg/validator"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"time"
 )
 
@@ -47,7 +46,7 @@ func (t Task) ProjectId() string {
 }
 
 func (t Task) TaskId() string {
-	return t.TaskId()
+	return t.info.TaskId
 }
 
 func (t Task) IsStream() bool {
@@ -131,32 +130,36 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 			Triggered: st.Triggered + 1,
 			Value:     value,
 		}
+	} else {
+		return // 舍弃乱序的点
 	}
 	// 告警判断
 	isAnomaly := true
-	for _, s := range t.info.Series {
+	for i, s := range t.info.Series {
 		if st, ok := t.state[s.Key()]; ok {
 			if pt.Sub(st.Last) > 30*time.Minute || pt.Sub(st.Last) < -30*time.Minute {
 				isAnomaly = t.isAnomaly // 若两点间隔大于30分钟, 则维持原有状态不变
 				break
 			}
-			if st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower {
-				isAnomaly = false
-				break
+			if i == 0 {
+				isAnomaly = !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
+			} else {
+				// TODO:
+				if t.info.Operate[i-1] == 0 { // 且
+					isAnomaly = isAnomaly || !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
+				} else { // 或
+					isAnomaly = isAnomaly && !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
+				}
 			}
 		} else {
 			isAnomaly = false // 数据不全不告警
 		}
 	}
 	// TODO:考虑持续时间
-	if isAnomaly {
-		if !t.isAnomaly && pt.After(t.timer) { // 如果之前是正常的,改为异常
+	if isAnomaly { // 如果当前是异常
+		if !t.isAnomaly { // 如果之前是正常的,改为异常
 			t.timer = pt
 			t.isAnomaly = isAnomaly
-		}
-		if t.timer.Add(t.duration).Before(pt) {
-			// TODO: message push
-			t.logInfo("alert message push")
 			t.publish(t.info.Level, pt)
 		}
 	} else {
@@ -169,16 +172,17 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 
 func (t *Task) publish(level int, pt time.Time) {
 	for _, s := range t.info.Series {
+		key := fmt.Sprintf("%s#%s#%s", s.SensorMac, s.SensorType, s.ReceiveNo)
 		r := record.Record{
-			Time:           pt,
-			Start:          pt,
-			Stop:           pt,
 			SensorMac:      s.SensorMac,
 			SensorType:     s.SensorType,
 			ReceiveNo:      s.ReceiveNo,
 			ThresholdUpper: s.ThresholdUpper,
 			ThresholdLower: s.ThresholdLower,
-			Value:          t.state[s.Key()].Value,
+			Value:          t.state[key].Value,
+			Time:           pt,
+			Start:          pt,
+			Stop:           pt,
 			Level:          level,
 		}
 		_ = record.SaveAlertRecord(t.info.TaskId, t.info.ProjectId, r)
@@ -233,24 +237,4 @@ func (t *Task) SetThreshold(sensorMac, sensorType, receiveNo string, lower *floa
 		}
 	}
 	return t.Save()
-}
-
-func (t *Task) logInfo(format string, opts ...interface{}) {
-	var msg string
-	if len(opts) > 0 {
-		msg = fmt.Sprintf(format, opts...)
-	} else {
-		msg = format
-	}
-	logrus.Infof("task %s: %s", t.info.TaskId, msg)
-}
-
-func (t *Task) logError(format string, opts ...interface{}) {
-	var msg string
-	if len(opts) > 0 {
-		msg = fmt.Sprintf(format, opts...)
-	} else {
-		msg = format
-	}
-	logrus.Errorf("task %s: %s", t.info.TaskId, msg)
 }
