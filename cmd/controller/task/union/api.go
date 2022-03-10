@@ -47,8 +47,8 @@ func (u TaskInfo) Validate() error {
 	if len(u.TaskId) < 4 || len(u.TaskId) > 20 {
 		return fmt.Errorf("length of task id must between 4 and 20")
 	}
-	if len(u.TaskName) < 4 || len(u.TaskName) > 40 {
-		return fmt.Errorf("length of task name must between 4 and 20")
+	if len(u.TaskName) < 4 || len(u.TaskName) > 80 {
+		return fmt.Errorf("length of task name must between 4 and 80")
 	}
 	if u.ProjectId <= 0 {
 		return fmt.Errorf("projcet id must > 0")

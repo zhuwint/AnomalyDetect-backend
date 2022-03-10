@@ -17,16 +17,18 @@ type Manager struct {
 	tasks    map[string]api.Task
 	taskList []string // 用于有序遍历 map
 	//数据到task的映射, project_id#sensor_mac#sensor_type#receive_no -> project_id#taskId
-	pubSub map[string][]string
-	rw     sync.RWMutex
+	pubSub     map[string][]string
+	rw         sync.RWMutex
+	streamLock sync.RWMutex
 }
 
 func NewManager() *Manager {
 	return &Manager{
-		tasks:    make(map[string]api.Task, 0),
-		taskList: make([]string, 0),
-		pubSub:   make(map[string][]string),
-		rw:       sync.RWMutex{},
+		tasks:      make(map[string]api.Task, 0),
+		taskList:   make([]string, 0),
+		pubSub:     make(map[string][]string),
+		rw:         sync.RWMutex{},
+		streamLock: sync.RWMutex{},
 	}
 }
 
@@ -220,6 +222,8 @@ func parseTaskKey(key string) []string {
 }
 
 func (m *Manager) WritePoints(points imodels.Points) {
+	m.streamLock.Lock()
+	defer m.streamLock.Unlock()
 	// logrus.Infof("receive %d points", len(points))
 	for _, p := range points {
 		measurement := string(p.Name())

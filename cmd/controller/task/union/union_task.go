@@ -137,9 +137,9 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 	isAnomaly := true
 	for i, s := range t.info.Series {
 		if st, ok := t.state[s.Key()]; ok {
-			if pt.Sub(st.Last) > 30*time.Minute || pt.Sub(st.Last) < -30*time.Minute {
-				isAnomaly = t.isAnomaly // 若两点间隔大于30分钟, 则维持原有状态不变
-				break
+			if pt.Sub(st.Last) > 30*time.Minute || st.Last.Sub(pt) > 30*time.Minute {
+				// isAnomaly = t.isAnomaly // 若两点间隔大于30分钟, 则维持原有状态不变
+				return
 			}
 			if i == 0 {
 				isAnomaly = !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
@@ -157,13 +157,14 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 	}
 	// TODO:考虑持续时间
 	if isAnomaly { // 如果当前是异常
-		if !t.isAnomaly { // 如果之前是正常的,改为异常
+		if !t.isAnomaly && t.timer != pt { // 如果之前是正常的,改为异常
 			t.timer = pt
 			t.isAnomaly = isAnomaly
 			t.publish(t.info.Level, pt)
 		}
 	} else {
-		if t.isAnomaly {
+		if t.isAnomaly && t.timer != pt {
+			t.timer = pt
 			t.publish(int(api.InfoLevel), pt)
 		}
 		t.isAnomaly = isAnomaly
@@ -171,6 +172,7 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 }
 
 func (t *Task) publish(level int, pt time.Time) {
+	fmt.Println("save alert record", level, pt.Local().String())
 	for _, s := range t.info.Series {
 		key := fmt.Sprintf("%s#%s#%s", s.SensorMac, s.SensorType, s.ReceiveNo)
 		r := record.Record{
@@ -185,7 +187,10 @@ func (t *Task) publish(level int, pt time.Time) {
 			Stop:           pt,
 			Level:          level,
 		}
-		_ = record.SaveAlertRecord(t.info.TaskId, t.info.ProjectId, r)
+		err := record.SaveAlertRecord(t.info.TaskId, t.info.ProjectId, r)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
 	}
 }
 
