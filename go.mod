@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/blinkbean/dingtalk v0.0.0-20210905093040-7d935c0f7e19
 	github.com/gin-gonic/gin v1.7.7
+	github.com/go-playground/assert/v2 v2.0.1
 	github.com/gorilla/mux v1.8.0
 	github.com/influxdata/influxdb-client-go/v2 v2.6.0
 	github.com/sirupsen/logrus v1.8.1

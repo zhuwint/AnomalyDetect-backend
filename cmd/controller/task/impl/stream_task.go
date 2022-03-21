@@ -344,8 +344,15 @@ func (s *StreamTask) Run(projectId, sensorMac, sensorType, receiveNo string, val
 	if !s.detectEnabled.Get() {
 		return
 	}
+
+	if s.triggered.Get() != 0 && pt.Before(s.timer) { // 舍弃乱序的点
+		return
+	}
+
+	s.timer = pt
 	s.triggered.Set(s.triggered.Get() + 1)
 	s.currentValue.Set(value)
+
 	upper, lower := s.thresholdUpper.Get(), s.thresholdLower.Get()
 
 	r := record.Record{
@@ -360,26 +367,46 @@ func (s *StreamTask) Run(projectId, sensorMac, sensorType, receiveNo string, val
 		Stop:           pt,
 	}
 
-	if value < lower || value > upper {
-		if !s.isAnomaly && pt.After(s.timer) { // 舍弃乱序的点
-			s.isAnomaly = true
-			s.timer = pt
-		}
-		if s.timer.Add(s.duration).Before(time.Now()) {
-			// TODO: message pub
-			s.logInfo("alert message pub")
+	if value < lower || value > upper { // 异常
+		if !s.isAnomaly { // 如果之前是正常的，则变为异常，并发送告警
 			r.Level = s.info.Level
+			// TODO: message push
 			_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+			// s.logInfo("anomaly detect: upper %v lower %v current %v, is anomaly", upper, lower, value)
+			// fmt.Println("save alert record", r.Level, pt.Local().String())
 		}
-		s.logInfo("anomaly detect: upper %v lower %v current %v, is anomaly", upper, lower, value)
-	} else {
-		if s.isAnomaly {
+		s.isAnomaly = true
+	} else { // 正常
+		if s.isAnomaly { // 如果之前为异常则改为正常
 			r.Level = int(api.InfoLevel)
+			// TODO: message push
 			_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+			// s.logInfo("anomaly detect: upper %v lower %v current %v, is normal", upper, lower, value)
+			// fmt.Println("save alert record", r.Level, pt.Local().String())
 		}
 		s.isAnomaly = false
-		s.logInfo("anomaly detect: upper %v lower %v current %v, is normal", upper, lower, value)
 	}
+
+	// if value < lower || value > upper {
+	// 	if !s.isAnomaly && pt.After(s.timer) { // 舍弃乱序的点
+	// 		s.isAnomaly = true
+	// 		s.timer = pt
+	// 	}
+	// 	if s.timer.Add(s.duration).Before(time.Now()) {
+	// 		// TODO: message pub
+	// 		s.logInfo("alert message pub")
+	// 		r.Level = s.info.Level
+	// 		_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+	// 	}
+	// 	s.logInfo("anomaly detect: upper %v lower %v current %v, is anomaly", upper, lower, value)
+	// } else {
+	// 	if s.isAnomaly {
+	// 		r.Level = int(api.InfoLevel)
+	// 		_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+	// 	}
+	// 	s.isAnomaly = false
+	// 	s.logInfo("anomaly detect: upper %v lower %v current %v, is normal", upper, lower, value)
+	// }
 }
 
 func (s *StreamTask) logInfo(format string, opts ...interface{}) {

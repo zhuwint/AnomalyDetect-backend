@@ -1,0 +1,7 @@
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=6.47400665283203 1621303200000000000
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=19.55980682373047 1621303800000000000
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=19.55980682373047 1621304400000000000
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=19.602706909179688 1621305000000000000
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=19.688507080078125 1621305600000000000
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=19.75286102294922 1621306200000000000
+sensor_data,project_id=3,receive_no=2,sensor_mac=C125,sensor_type=temperature_air value=39.860107421875 1621306800000000000

@@ -37,7 +37,9 @@ func NewController() (*Controller, error) {
 	//serviceName := env.GetEnvString(dapr.AppIdEnv, defaultServiceName)
 	//servicePort := env.GetEnvInt(dapr.AppPortEnv, defaultHttpPort)
 	//daprInstance := dapr.NewDapr(serviceName, servicePort)
-	e := gin.Default()
+	// e := gin.Default()
+	e := gin.New()
+	e.Use(gin.Recovery())
 
 	return &Controller{
 		//Dapr:        daprInstance,
@@ -55,7 +57,7 @@ func (c *Controller) Start() error {
 
 	c.initRouter()
 	c.registerKong()
-	// go time.AfterFunc(7*time.Second, c.initTask)
+	go time.AfterFunc(7*time.Second, c.initTask)
 	go time.AfterFunc(7*time.Second, c.initUnionTask)
 
 	// 此处阻塞

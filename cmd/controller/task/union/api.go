@@ -2,6 +2,7 @@ package union
 
 import (
 	"anomaly-detect/pkg/validator"
+	"container/heap"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -147,4 +148,71 @@ func (s SimpleStatus) GetTaskId() string {
 func (s SimpleStatus) MarshToJson() []byte {
 	data, _ := json.Marshal(s)
 	return data
+}
+
+type PV struct {
+	T time.Time
+	V float64
+}
+
+type hp []PV
+
+func (h hp) Len() int {
+	return len(h)
+}
+
+func (h hp) Less(i, j int) bool {
+	return h[i].T.Before(h[j].T)
+}
+
+func (h hp) Swap(i, j int) {
+	h[i], h[j] = h[j], h[i]
+}
+
+func (h *hp) Pop() interface{} {
+	old := *h
+	n := len(old)
+	x := old[n-1]
+	*h = old[0 : n-1]
+	return x
+}
+
+func (h *hp) Push(x interface{}) {
+	*h = append(*h, x.(PV))
+}
+
+type State struct {
+	Last      PV
+	Triggered int
+	Buffer    hp
+}
+
+func (s *State) Push(p PV) {
+	s.Triggered++
+	heap.Push(&s.Buffer, p)
+}
+
+func (s *State) Pop() PV {
+	return heap.Pop(&s.Buffer).(PV)
+}
+
+func (s *State) Len() int {
+	return len(s.Buffer)
+}
+
+func (s *State) Top() PV {
+	return s.Buffer[0]
+}
+
+func (s *State) SetLast(p PV) {
+	s.Last = p
+}
+
+func NewState() *State {
+	var h hp
+	heap.Init(&h)
+	return &State{
+		Triggered: 0,
+		Buffer:    h,
+	}
 }

@@ -10,7 +10,7 @@ import (
 
 type Task struct {
 	info      TaskInfo
-	state     map[string]RunTimeState
+	state     map[string]*State
 	enabled   bool
 	isAnomaly bool          // 当前告警状态
 	duration  time.Duration // 持续多少时间告警
@@ -30,7 +30,7 @@ func NewUnionTask(info api.Info) (*Task, error) {
 	d, _ := validator.CheckDurationPositive(taskInfo.Duration)
 	t := &Task{
 		info:      taskInfo,
-		state:     make(map[string]RunTimeState, len(taskInfo.Series)),
+		state:     make(map[string]*State, len(taskInfo.Series)),
 		enabled:   false,
 		isAnomaly: false,
 		duration:  d,
@@ -118,45 +118,79 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 
 	// 更新值
 	key := fmt.Sprintf("%s#%s#%s", sensorMac, sensorType, receiveNo)
-	if st, ok := t.state[key]; !ok {
-		t.state[key] = RunTimeState{
-			Last:      pt,
-			Triggered: 1,
-			Value:     value,
-		}
-	} else if pt.After(st.Last) {
-		t.state[key] = RunTimeState{
-			Last:      pt,
-			Triggered: st.Triggered + 1,
-			Value:     value,
-		}
-	} else {
-		return // 舍弃乱序的点
+	if _, ok := t.state[key]; !ok { // 如果之前没有状态，则创建
+		t.state[key] = NewState()
 	}
+
+	if pt.Before(t.state[key].Last.T) {
+		return // 如果时间在已经处理过的点的时间之前，则舍弃，保证重复发的点不会被重复处理
+	}
+
+	// if t.state[key].Len() > 0 && t.state[key].Top().T.Sub(pt) > 15*time.Minute { // 乱序点，过时15分钟，舍弃
+	// 	return
+	// }
+
+	// 插入值, 并保证缓存在一定数量范围内, 该范围暂时设为10
+	t.state[key].Push(PV{
+		T: pt,
+		V: value,
+	})
+
+	for t.state[key].Len() > 10 {
+		t.state[key].Pop()
+	}
+
+	// 数据不全不告警
+	for _, s := range t.info.Series {
+		if _, ok := t.state[s.Key()]; !ok {
+			return
+		}
+	}
+
+	// 此刻到达的点作为基准点
+	base_point := t.state[key].Top()
+
+	// 触发告警前进行时间规整
+	for _, s := range t.info.Series {
+		st := t.state[s.Key()]
+		for t.state[s.Key()].Len() > 0 && st.Top().T.Sub(base_point.T) < -1*time.Minute { // 其它数据过时
+			_ = st.Pop()
+		}
+		if st.Len() == 0 {
+			return // 数据不全不告警
+		} else {
+			for st.Top().T.Sub(base_point.T) > 1*time.Minute && t.state[key].Len() > 0 { // 当前数据过时
+				base_point = t.state[key].Pop()
+			}
+		}
+	}
+
 	// 告警判断
 	isAnomaly := true
 	for i, s := range t.info.Series {
-		if st, ok := t.state[s.Key()]; ok {
-			if pt.Sub(st.Last) > 30*time.Minute || st.Last.Sub(pt) > 30*time.Minute {
-				// isAnomaly = t.isAnomaly // 若两点间隔大于30分钟, 则维持原有状态不变
-				return
-			}
-			if i == 0 {
-				isAnomaly = !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
-			} else {
-				// TODO:
-				if t.info.Operate[i-1] == 0 { // 且
-					isAnomaly = isAnomaly || !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
-				} else { // 或
-					isAnomaly = isAnomaly && !(st.Value <= s.ThresholdUpper && st.Value >= s.ThresholdLower)
-				}
-			}
+		st := t.state[s.Key()]
+		if st == nil || st.Len() == 0 {
+			return
+		}
+		flag := !(st.Top().V <= s.ThresholdUpper && st.Top().V >= s.ThresholdLower)
+		if i == 0 {
+			isAnomaly = flag
 		} else {
-			isAnomaly = false // 数据不全不告警
+			if t.info.Operate[i-1] == 0 { // 且
+				isAnomaly = isAnomaly || flag
+			} else { // 或
+				isAnomaly = isAnomaly && flag
+			}
 		}
 	}
-	// TODO:考虑持续时间
-	if isAnomaly { // 如果当前是异常
+
+	// 经过一轮比较之后把位于队列头部的点全部删除
+	for _, s := range t.info.Series {
+		t.state[s.Key()].SetLast(t.state[s.Key()].Pop())
+	}
+
+	// 推送判断 TODO:考虑持续时间
+	if isAnomaly { // 如果当前为异常
 		if !t.isAnomaly && t.timer != pt { // 如果之前是正常的,改为异常
 			t.timer = pt
 			t.isAnomaly = isAnomaly
@@ -172,7 +206,7 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 }
 
 func (t *Task) publish(level int, pt time.Time) {
-	fmt.Println("save alert record", level, pt.Local().String())
+	// fmt.Println("save alert record", level, pt.Local().String())
 	for _, s := range t.info.Series {
 		key := fmt.Sprintf("%s#%s#%s", s.SensorMac, s.SensorType, s.ReceiveNo)
 		r := record.Record{
@@ -181,7 +215,7 @@ func (t *Task) publish(level int, pt time.Time) {
 			ReceiveNo:      s.ReceiveNo,
 			ThresholdUpper: s.ThresholdUpper,
 			ThresholdLower: s.ThresholdLower,
-			Value:          t.state[key].Value,
+			Value:          t.state[key].Last.V,
 			Time:           pt,
 			Start:          pt,
 			Stop:           pt,
@@ -199,11 +233,19 @@ func (t Task) Save() error {
 }
 
 func (t Task) Status() api.Status {
+	state := make(map[string]RunTimeState)
+	for k := range t.state {
+		state[k] = RunTimeState{
+			Last:      t.state[k].Last.T,
+			Triggered: t.state[k].Triggered,
+			Value:     t.state[k].Last.V,
+		}
+	}
 	st := Status{
 		Info:      t.info,
 		Created:   t.created,
 		Updated:   t.updated,
-		State:     t.state,
+		State:     state,
 		Enable:    t.enabled,
 		IsAnomaly: t.isAnomaly,
 	}
