@@ -1,0 +1,60 @@
+{
+    "task_id": "test_batch",
+    "project_id": 19,
+    "preprocess": null,
+    "detect_model": {
+        "name": "gumbel",
+        "params": {
+            "freq": 12,
+            "period": 3,
+            "method": "fluctuate"
+        }
+    },
+    "model_update": {
+        "interval": "10s",
+        "data_source": {
+            "bucket": "yinao",
+            "range": {
+                "start": "2021-09-02T00:00:00Z",
+                "stop": "2021-12-03T00:00:00Z"
+            },
+            "aggregate": "30m",
+            "measurement": "sensor_data",
+            "project_id": 19,
+            "series": [
+                {
+                    "sensor_mac": "430A",
+                    "receive_no": "2",
+                    "sensor_type": "distance"
+                }
+            ]
+        }
+    },
+    "anomaly_detect": {
+        "interval": "10s",
+        "data_source": {
+            "bucket": "yinao",
+            "range": {
+                "start": "2021-12-02T00:00:00Z",
+                "stop": "2021-12-03T00:00:00Z"
+            },
+            "aggregate": "30m",
+            "measurement": "sensor_data",
+            "project_id": 19,
+            "series": [
+                {
+                    "sensor_mac": "430A",
+                    "receive_no": "2",
+                    "sensor_type": "distance"
+                },
+                {
+                    "sensor_mac": "2521",
+                    "receive_no": "2",
+                    "sensor_type": "temperature_air"
+                }
+            ]
+        }
+    },
+    "is_stream": false,
+    "level": 1
+}

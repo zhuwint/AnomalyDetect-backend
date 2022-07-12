@@ -1,0 +1,28 @@
+{
+    "task_name": "基准测试",     
+    "project_id": 3,
+    "bucket": "yinao",
+    "measurement": "sensor_data",
+    "series": [
+        {
+            "sensor_mac": "sensor_mac",
+            "receive_no": "2",
+            "sensor_type": "temperature_air",
+            "threshold_upper": 29.5,
+            "threshold_lower": 10.0
+        },
+        {
+            "sensor_mac": "sensor_mac",
+            "receive_no": "3",
+            "sensor_type": "humidity_air",
+            "threshold_upper": 90.0,
+            "threshold_lower": 45.0
+        }
+    ],
+    "operate": [
+        0
+    ],
+    "duration": "10m",
+    "is_stream": true,
+    "level": 1
+}

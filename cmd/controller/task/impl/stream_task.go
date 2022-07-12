@@ -371,18 +371,18 @@ func (s *StreamTask) Run(projectId, sensorMac, sensorType, receiveNo string, val
 		if !s.isAnomaly { // 如果之前是正常的，则变为异常，并发送告警
 			r.Level = s.info.Level
 			// TODO: message push
-			_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+			// _ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
 			// s.logInfo("anomaly detect: upper %v lower %v current %v, is anomaly", upper, lower, value)
-			// fmt.Println("save alert record", r.Level, pt.Local().String())
+			fmt.Println("save alert record", r.Level, pt.Local().String())
 		}
 		s.isAnomaly = true
 	} else { // 正常
 		if s.isAnomaly { // 如果之前为异常则改为正常
 			r.Level = int(api.InfoLevel)
 			// TODO: message push
-			_ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
+			// _ = record.SaveAlertRecord(s.TaskId(), s.info.ProjectId, r)
 			// s.logInfo("anomaly detect: upper %v lower %v current %v, is normal", upper, lower, value)
-			// fmt.Println("save alert record", r.Level, pt.Local().String())
+			fmt.Println("save alert record", r.Level, pt.Local().String())
 		}
 		s.isAnomaly = false
 	}

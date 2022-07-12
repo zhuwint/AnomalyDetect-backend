@@ -3,6 +3,8 @@ import requests
 import json
 import argparse
 
+IP = "10.203.96.205"
+
 
 def create_union_task(idx: int, sensor_mac: str):
     data = {
@@ -31,7 +33,7 @@ def create_union_task(idx: int, sensor_mac: str):
         "is_stream": True,
         "level": 1
     }
-    req = requests.post(url="http://10.203.96.205:3030/api/task/union", data=json.dumps(data).encode())
+    req = requests.post(url=f"http://{IP}:3030/api/task/union", data=json.dumps(data).encode())
     if req.status_code < 200 or req.status_code > 299:
         print(f"创建失败: {req.content}")
     else:
@@ -71,7 +73,7 @@ def create_stream_task(idx: int, sensor_mac: str):
         "is_stream": True,
         "level": 1
     }
-    req = requests.post(url="http://10.203.96.205:3030/api/task/stream", data=json.dumps(data).encode())
+    req = requests.post(url=f"http://{IP}:3030/api/task/stream", data=json.dumps(data).encode())
     if req.status_code < 200 or req.status_code > 299:
         print(f"创建失败：{sensor_mac} {req.content}")
     elif json.loads(req.text).get('status') == 0:
@@ -85,6 +87,9 @@ if __name__ == '__main__':
     parser.add_argument('--kind', type=int, default=0)
     parser.add_argument('--all', type=int, default=0)
     arg = parser.parse_args()
+
+    if arg.all == 0:
+        IP = "localhost"
 
     creater = None
     if arg.kind == 0:

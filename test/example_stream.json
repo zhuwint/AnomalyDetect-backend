@@ -1,0 +1,32 @@
+{
+    "project_id": 3,
+    "detect_model": {
+        "name": "gumbel.real",
+        "params": {
+            "alpha": 0.000001,
+            "freq": 48
+        }
+    },
+    "target": {
+        "sensor_mac": "sensor_mac",
+        "receive_no": "2",
+        "sensor_type": "temperature_air"
+    },
+    "independent": [],
+    "model_update": {
+        "interval": "24h",
+        "query": {
+            "measurement": "sensor_data",
+            "range": {
+                "start": "-720h",
+                "stop": "now()"
+            },
+            "aggregate": "30m"
+        }
+    },
+    "anomaly_detect": {
+        "duration": "0m"
+    },
+    "is_stream": true,
+    "level": 1
+}

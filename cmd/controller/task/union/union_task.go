@@ -206,7 +206,7 @@ func (t *Task) Run(projectId, sensorMac, sensorType, receiveNo string, value flo
 }
 
 func (t *Task) publish(level int, pt time.Time) {
-	// fmt.Println("save alert record", level, pt.Local().String())
+	fmt.Println("save alert record", level, pt.Local().String())
 	for _, s := range t.info.Series {
 		key := fmt.Sprintf("%s#%s#%s", s.SensorMac, s.SensorType, s.ReceiveNo)
 		r := record.Record{

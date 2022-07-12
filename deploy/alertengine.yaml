@@ -6,5 +6,5 @@ mysql:
 smtp:
   host: "smtp.zju.edu.cn"
   port: 25
-  account: "22060112@zju.edu.cn"
-  password: "201609xyz"
+  account: ""
+  password: ""
